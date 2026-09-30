@@ -1,38 +1,53 @@
 # Dual-boot: MicroBASIC and CrossPoint on the same PaperS3
 
-The dev unit carries **two firmwares at once**, so this project and the
-CrossPoint reader port can both be developed against the same physical board
+The dev unit carries **three firmwares at once**, so this project, the
+CrossPoint reader port and RetroComputer can all be developed against the same physical board
 without reflashing the layout every time we switch:
 
 | slot | subtype | offset     | size   | app                                     |
 |------|---------|------------|--------|-----------------------------------------|
-| app0 | `ota_0` | `0x20000`  | 6656K  | CrossPoint reader (`crosspoint-reader-m5papers3`, ~5.2MB) |
-| app1 | `ota_1` | `0x6A0000` | 6656K  | **MicroBASIC** (this repo, ~1.7MB)      |
+| app0 | `ota_0` | `0x20000`  | 6M     | CrossPoint reader (`crosspoint-reader-m5papers3`, ~5.2MB) |
+| app1 | `ota_1` | `0x620000` | 2560K  | **MicroBASIC** (this repo, ~1.7MB)      |
+| app2 | `ota_2` | `0x8A0000` | 7488K  | RetroComputer (`RetroComputer-MultiBoard`, ~5.5MB) |
 
-The bootloader picks between them from the 8KB `otadata` partition, so
+The bootloader picks among them from the 8KB `otadata` partition, so
 switching apps writes 32 bytes and never touches an app image.
 
 The layout lives in [`editor/partitions.csv`](../editor/partitions.csv), and
 the identical table lives in
-`crosspoint-reader-m5papers3/partitions_m5papers3.csv`. **Those two files must
+`crosspoint-reader-m5papers3/partitions_m5papers3.csv` and
+`RetroComputer-MultiBoard/partitions-papers3.csv`. **Those three files must
 stay byte-identical below their comment headers.** There is one table on the
 device, and each project only describes it.
 
 ```
 nvs       data  nvs       0x9000     32K
 otadata   data  ota       0x11000     8K
-app0      app   ota_0     0x20000   6656K   <- CrossPoint
-app1      app   ota_1     0x6A0000  6656K   <- MicroBASIC
-coredump  data  coredump  0xD20000    64K
-spiffs    data  spiffs    0xD30000  2880K   (reserved; nothing uses it today)
+app0      app   ota_0     0x20000    6M     <- CrossPoint     (~5.2MB)
+app1      app   ota_1     0x620000   2560K  <- MicroBASIC     (~1.7MB)
+app2      app   ota_2     0x8A0000   7488K  <- RetroComputer  (~5.5MB)
+coredump  data  coredump  0xFF0000    64K
 ```
 
-Slots are symmetric at 6656K rather than sized to today's binaries. CrossPoint
-needs ~5.2MB and sets the size for both; this firmware uses ~1.7MB of its slot.
-Whatever project lands in a slot next should not force a re-partition. The
-whole point is that this table is written **once**. That is the change from the
-previous single-app layout, which was sized to MicroBASIC alone (a 3MB `app0`)
-and left no room for anything else.
+Since 2026-09-30 the table has **three** app slots, each sized to its app
+with room to grow, where it used to have two symmetric 6656K slots and an
+unused 2880K `spiffs`. CrossPoint has ~0.8MB spare for a rebase onto upstream
+1.6.x (this port is on 1.5.0), MicroBASIC ~0.8MB for what is still to come,
+and RetroComputer (MSX, Spectrum and Macintosh emulators,
+`RetroComputer-MultiBoard`, `partitions-papers3.csv`) takes the rest. `nvs`
+and `otadata` did not move in the migration, so settings, BLE bonds and WiFi
+survived it. Its backup and the images written are in
+`~/github/_backups/papers3-2026-09-30/`.
+
+With three slots, the otadata sequence that boots slot N is the one where
+`(seq - 1) % 3 == N`. Both switch implementations used to assume `% 2` and
+now count the OTA partitions; a firmware still carrying `% 2` lands on the
+wrong app.
+
+The READER button still goes to CrossPoint alone: this firmware lists only
+slots holding a *different* project, and RetroComputer, built with the same
+pioarduino core, carries the same `esp_app_desc_t` project name. CrossPoint's
+Home lists both of the others.
 
 `nvs` stays at 32K, for the reason in `DEVELOPMENT_LOG.md`'s "WiFi never
 actually connected": 16K could not hold BLE bonds, saved WiFi credentials and
@@ -57,7 +72,7 @@ Build, then write only the app, only into `app1`:
 ```bash
 pio run -e m5papers3
 python3 -m esptool --chip esp32s3 --port /dev/cu.usbmodem101 --baud 921600 \
-    write_flash 0x6A0000 .pio/build/m5papers3/firmware.bin
+    write_flash 0x620000 .pio/build/m5papers3/firmware.bin
 ```
 
 `python3 -m esptool`, not a bare `esptool.py`, which is not on `PATH`. If the
@@ -66,7 +81,7 @@ module is missing from your `python3`, PlatformIO's own copy is always there:
 
 `board_upload.offset_address` and `board_upload.maximum_size` in
 `editor/platformio.ini` track the `app1` row, so "Checking size" measures
-against the real 6656K ceiling.
+against the real 2560K ceiling.
 
 **Do not use `pio run -t upload`.** It writes four images, not one:
 `bootloader.bin` at `0x0`, the partition table at `0x8000`, `boot_app0.bin` at

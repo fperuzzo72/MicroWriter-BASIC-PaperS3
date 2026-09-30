@@ -1,25 +1,21 @@
-# M5Stack PaperS3 (16MB flash) -- SHARED dual-boot table.
+# M5Stack PaperS3 (16MB flash) -- SHARED three-app table.
 #
-# This device carries two firmwares at once so more than one project can be
-# developed against the same physical unit without reflashing the layout every
-# time we switch. The table itself is the contract: it is written to the device
-# ONCE, and both projects describe it identically.
+# This device carries three firmwares at once, selected by the bootloader
+# from otadata (see docs/DUAL_BOOT.md):
 #
 #   app0 / ota_0  CrossPoint reader      (crosspoint-reader-m5papers3/
-#                                         partitions_m5papers3.csv, which MUST
-#                                         stay byte-identical to this file
-#                                         below the comment header)
-#   app1 / ota_1  MicroBASIC             (this repo)
+#                                         partitions_m5papers3.csv, 6MB slot)
+#   app1 / ota_1  MicroBASIC/MicroWriter (this repo, 2.5MB slot)
+#   app2 / ota_2  RetroComputer          (RetroComputer-MultiBoard/
+#                                         partitions-papers3.csv, 7.3MB slot)
 #
-# The bootloader picks the slot from otadata, so switching apps never touches
-# an app image -- see docs/DUAL_BOOT.md.
+# The three files MUST stay byte-identical below their comment headers: one
+# table on the device, three descriptions of it.
 #
-# Slots are symmetric at 6656K rather than sized to today's binaries (this
-# firmware uses ~1.7MB of its 6.5MB): whichever project lands in a slot next
-# should not force a re-partition. CrossPoint needs ~5.2MB, which is what sets
-# the size for both. The offsets are what everything else is pinned to
-# (platformio.ini's offset_address, the flashing recipes in the docs), so treat
-# a change here as a device-wide migration, not an edit.
+# Migrated 2026-09-30 from the earlier two-app table (two symmetric 6656K
+# slots plus an unused 2880K spiffs). Each slot is now sized to its app with
+# room to grow: this firmware is ~1.7MB in 2.5MB. nvs and otadata did not
+# move, so settings, bonds and WiFi survived.
 #
 # nvs is 32K, not the 16K the stock M5 layout used or the 20K stock CrossPoint
 # uses: those were too small to hold BLE bonds + saved WiFi credentials + the
@@ -30,7 +26,7 @@
 # Name,     Type, SubType,  Offset,    Size,      Flags
 nvs,        data, nvs,      0x9000,    0x8000,
 otadata,    data, ota,      0x11000,   0x2000,
-app0,       app,  ota_0,    0x20000,   0x680000,
-app1,       app,  ota_1,    0x6A0000,  0x680000,
-coredump,   data, coredump, 0xD20000,  0x10000,
-spiffs,     data, spiffs,   0xD30000,  0x2D0000,
+app0,       app,  ota_0,    0x20000,   0x600000,
+app1,       app,  ota_1,    0x620000,  0x280000,
+app2,       app,  ota_2,    0x8A0000,  0x750000,
+coredump,   data, coredump, 0xFF0000,  0x10000,

@@ -4,8 +4,9 @@
 #   editor/boot-slot.sh            # report the current selection
 #   editor/boot-slot.sh 0          # boot app0 (CrossPoint reader)
 #   editor/boot-slot.sh 1          # boot app1 (MicroBASIC, this repo)
+#   editor/boot-slot.sh 2          # boot app2 (RetroComputer)
 #
-# The unit carries both firmwares at once (see docs/DUAL_BOOT.md); only the 8KB
+# The unit carries three firmwares at once (see docs/DUAL_BOOT.md); only the 8KB
 # otadata partition decides which one runs, so switching is instant and neither
 # slot is rewritten. This is a thin wrapper over ESP-IDF's own otatool.py -- it
 # exists so the otadata entry (a sequence number plus its CRC) is written by the
@@ -47,7 +48,8 @@ fi
 case "$SLOT" in
   0) echo "-> app0 (CrossPoint)" ;;
   1) echo "-> app1 (MicroBASIC)" ;;
-  *) echo "slot must be 0 or 1" >&2; exit 1 ;;
+  2) echo "-> app2 (RetroComputer)" ;;
+  *) echo "slot must be 0, 1 or 2" >&2; exit 1 ;;
 esac
 run switch_ota_partition --slot "$SLOT"
 echo "Done. Power-cycle with the physical button."

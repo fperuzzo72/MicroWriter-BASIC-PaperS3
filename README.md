@@ -57,7 +57,7 @@ CrossPoint plus whichever was written last:
 ```bash
 pio run -e microwriter
 python3 -m esptool --chip esp32s3 --port <port> --baud 921600 \
-    write_flash 0x6A0000 .pio/build/microwriter/firmware.bin
+    write_flash 0x620000 .pio/build/microwriter/firmware.bin
 ```
 
 ## How it works
@@ -435,17 +435,17 @@ board without reflashing the layout every time. The table in
 ```
 nvs       data  nvs      0x9000     32K
 otadata   data  ota      0x11000     8K
-app0      app   ota_0    0x20000   6656K  <- CrossPoint (~5.2MB used)
-app1      app   ota_1    0x6A0000  6656K  <- MicroBASIC (~1.7MB used)
-coredump  data  coredump 0xD20000    64K
-spiffs    data  spiffs   0xD30000  2880K  (reserved; unused)
+app0      app   ota_0    0x20000    6M     <- CrossPoint    (~5.2MB used)
+app1      app   ota_1    0x620000   2560K  <- MicroBASIC    (~1.7MB used)
+app2      app   ota_2    0x8A0000   7488K  <- RetroComputer (~5.5MB used)
+coredump  data  coredump 0xFF0000    64K
 ```
 
 Build the app, then write *just* `firmware.bin` into MicroBASIC's slot:
 
 ```bash
 python3 -m esptool --chip esp32s3 --port <port> --baud 921600 \
-    write_flash 0x6A0000 .pio/build/m5papers3/firmware.bin
+    write_flash 0x620000 .pio/build/m5papers3/firmware.bin
 ```
 
 (The module form, since `esptool.py` is not on `PATH`. PlatformIO's own copy,

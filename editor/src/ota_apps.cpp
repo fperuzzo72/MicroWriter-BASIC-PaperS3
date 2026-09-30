@@ -105,10 +105,22 @@ bool switchTo(const esp_partition_t* dest) {
   }
 
   // ota_seq encoding: (seq - 1) % <number of OTA partitions> selects the slot.
-  // This table has exactly two (see docs/DUAL_BOOT.md), so step forward until
-  // the parity lands on the one we want.
+  // Counted, not assumed: the table has three since 2026-09-30 (CrossPoint,
+  // this, RetroComputer; see docs/DUAL_BOOT.md), and a hard-coded 2 picked
+  // the wrong app.
+  uint32_t otaCount = 0;
+  esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, nullptr);
+  for (; it; it = esp_partition_next(it)) {
+    if (isOtaAppSlot(esp_partition_get(it))) ++otaCount;
+  }
+  esp_partition_iterator_release(it);
+  if (destOtaIdx >= otaCount) {
+    Serial.printf("[ota] ota_%u is past the %u OTA slots\n", static_cast<unsigned>(destOtaIdx),
+                  static_cast<unsigned>(otaCount));
+    return false;
+  }
   uint32_t newSeq = activeSeq + 1;
-  while (((newSeq - 1u) % 2u) != (destOtaIdx % 2u)) ++newSeq;
+  while (((newSeq - 1u) % otaCount) != destOtaIdx) ++newSeq;
 
   SelectEntry next = {};
   next.ota_seq = newSeq;
