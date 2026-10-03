@@ -110,10 +110,13 @@ fallback:
   a confirmation, since the cost of a stray tap is a reboot into another
   firmware. `editor/src/ota_apps.cpp`.
 
-The reader is found rather than hardcoded: `detectOtaApps()` walks the OTA
-partitions, skips the running one, and accepts a slot only if it holds a
-*different* project (an `esp_app_desc_t.project_name` comparison), so an empty
-slot or a stale copy of this same firmware is never offered. Its display name
+The reader is its slot: `detectOtaApps()` walks the OTA partitions, skips
+the running one, and accepts only ota_0 with a valid image in it. It used to
+accept any slot holding a *different* project (an `esp_app_desc_t.project_name`
+comparison), which also kept the RetroComputer in app2 off this menu, as the
+owner wants; but since CrossPoint 1.6.5 every app on the unit builds as
+"arduino-lib-builder", the test hid the reader too, and READER found nothing
+(2026-10-03). No field of the descriptor tells the apps apart; the slot does. Its display name
 comes from shared NVS, which is what `registerOtaAppName("MicroBASIC")` writes
 at boot -- that is what turns "OTA Slot 1" into "MicroBASIC" in the reader's
 own menu, on its next boot, with nothing to reflash on that side.

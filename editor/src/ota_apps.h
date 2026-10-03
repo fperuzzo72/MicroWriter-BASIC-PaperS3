@@ -22,9 +22,11 @@
 //     at all because esp_ota_set_boot_partition() fails on this silicon with a
 //     bogus efuse-blk-rev verification error, so the otadata entry is written
 //     by hand -- the same scheme the project's web flasher uses.
-//   * the "is this slot a different project" test, which CrossPoint takes from
-//     its FirmwareFlasher. Here it is a plain esp_app_desc_t project_name
-//     comparison, which is all that test needs to be.
+//   * which slots to offer. CrossPoint lists every other slot with a valid
+//     image; this lists only the reader's, ota_0, by the owner's wish (the
+//     RetroComputer in app2 is reached through the reader). It used to tell
+//     the reader apart by project_name, until every app on the unit built as
+//     "arduino-lib-builder" and the test hid the reader too.
 
 #include <esp_partition.h>
 
@@ -44,9 +46,9 @@ struct OtaAppEntry {
 void registerOtaAppName(const char* name);
 
 // Fills `apps[]` with the sibling apps in the other OTA slots and returns how
-// many were found. A slot counts only if it holds a *different* project than
-// the one running, so an empty slot -- or a stale copy of this same firmware
-// -- is never offered as somewhere to switch to.
+// many were found. Only the reader's slot (ota_0) counts, and only with a
+// valid image in it, so an empty slot is never offered as somewhere to switch
+// to, and neither is the RetroComputer in app2.
 int detectOtaApps(OtaAppEntry* apps, int maxApps);
 
 // Points otadata at `partitionSubtype` and restarts into it. Does nothing if

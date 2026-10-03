@@ -22,19 +22,20 @@ bool isOtaAppSlot(const esp_partition_t* p) {
   return p && p->subtype >= ESP_PARTITION_SUBTYPE_APP_OTA_0 && p->subtype <= ESP_PARTITION_SUBTYPE_APP_OTA_15;
 }
 
-// True when `p` holds a readable app image belonging to a different project
-// than the one running. CrossPoint spells this firmware_flash::
-// destHoldsForeignApp(); the test itself is just the project_name in the
-// image's app descriptor, and a slot with no valid descriptor (never flashed,
-// or flashed with garbage) fails the read and is correctly rejected.
-bool holdsForeignApp(const esp_partition_t* p) {
+// True when `p` is the reader's slot (ota_0, CrossPoint's) and holds a
+// readable app image. A slot with no valid descriptor (never flashed, or
+// flashed with garbage) fails the read and is correctly rejected.
+//
+// This used to be "a different project_name than ours", which also hid
+// RetroComputer in app2: the owner wants this menu to offer the reader only,
+// and RetroComputer is reached through the reader's Home. But every app on
+// this unit now builds as "arduino-lib-builder" (CrossPoint too, since 1.6.5),
+// so the name test hid the reader as well and READER found nothing. No field
+// of the descriptor tells the apps apart; the slot does.
+bool holdsReader(const esp_partition_t* p) {
+  if (!p || p->subtype != ESP_PARTITION_SUBTYPE_APP_OTA_0) return false;
   esp_app_desc_t theirs = {};
-  if (esp_ota_get_partition_description(p, &theirs) != ESP_OK) return false;
-
-  const esp_app_desc_t* ours = esp_app_get_description();
-  if (!ours) return false;
-
-  return strncmp(theirs.project_name, ours->project_name, sizeof(theirs.project_name)) != 0;
+  return esp_ota_get_partition_description(p, &theirs) == ESP_OK;
 }
 
 // --- otadata, written by hand ------------------------------------------------
@@ -180,7 +181,7 @@ int detectOtaApps(OtaAppEntry* apps, int maxApps) {
   esp_partition_iterator_t it = esp_partition_find(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, nullptr);
   while (it && count < maxApps) {
     const esp_partition_t* p = esp_partition_get(it);
-    if (p && p != running && isOtaAppSlot(p) && holdsForeignApp(p)) {
+    if (p && p != running && isOtaAppSlot(p) && holdsReader(p)) {
       const int slot = slotOf(p);
       char key[8];
       slotKey(slot, key, sizeof(key));
